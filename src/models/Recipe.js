@@ -6,16 +6,15 @@ const recipeSchema = new mongoose.Schema({
     required: true
   },
   ingredients: [{
-    type: String,
-    required: true
+    name: String,
+    amount: Number,
+    unit: String
   }],
   instructions: {
-    type: String,
-    required: true
+    type: String
   },
   cookingTime: {
-    type: Number,
-    required: true
+    type: Number
   },
   servings: {
     type: Number,
@@ -32,9 +31,15 @@ const recipeSchema = new mongoose.Schema({
   spoonacularId: {
     type: Number
   },
+  steps: [{
+    type: String
+  }],
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  spoonacularData: {
+    type: Object
   }
 });
 

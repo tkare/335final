@@ -1,22 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const axios = require('axios');
 const Recipe = require('../models/Recipe');
+const path = require('path');
 
 // Search recipes from Spoonacular API
 router.get('/search', async (req, res) => {
   try {
     const { query } = req.query;
-    const response = await axios.get(`https://api.spoonacular.com/recipes/complexSearch`, {
-      params: {
-        apiKey: process.env.SPOONACULAR_API_KEY,
-        query,
-        addRecipeInformation: true,
-        number: 10
-      }
+    const params = new URLSearchParams({
+      apiKey: process.env.SPOONACULAR_API_KEY,
+      query,
+      addRecipeInformation: 'true',
+      number: '10'
     });
-    res.json(response.data);
+    const response = await fetch(`https://api.spoonacular.com/recipes/complexSearch?${params}`);
+    const data = await response.json();
+    res.json(data);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Error searching recipes' });
   }
 });
@@ -24,25 +25,30 @@ router.get('/search', async (req, res) => {
 // Get recipe details from Spoonacular
 router.get('/details/:id', async (req, res) => {
   try {
-    const response = await axios.get(`https://api.spoonacular.com/recipes/${req.params.id}/information`, {
-      params: {
-        apiKey: process.env.SPOONACULAR_API_KEY
-      }
+    const params = new URLSearchParams({
+      apiKey: process.env.SPOONACULAR_API_KEY
     });
-    res.json(response.data);
+    const response = await fetch(`https://api.spoonacular.com/recipes/${req.params.id}/information?${params}`);
+    const data = await response.json();
+    res.json(data);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Error fetching recipe details' });
   }
 });
 
 // Save recipe to database
 router.post('/save', async (req, res) => {
+  // If the payload is wrapped in a 'spoonacular' property, use that
+  const data = req.body.spoonacular ? req.body.spoonacular : req.body;
+  console.log('Saving recipe:', data);
   try {
-    const recipe = new Recipe(req.body);
+    const recipe = new Recipe(data);
     await recipe.save();
     res.status(201).json(recipe);
   } catch (error) {
-    res.status(400).json({ error: 'Error saving recipe' });
+    console.error('Error saving recipe:', error);
+    res.status(400).json({ error: error.message, details: error.errors });
   }
 });
 
@@ -56,17 +62,37 @@ router.get('/saved', async (req, res) => {
   }
 });
 
-// Create new recipe
+// Create new recipe (no image upload)
 router.post('/create', async (req, res) => {
   try {
+    const { title, instructions, cookingTime, servings, imageUrl: bodyImageUrl } = req.body;
+    let ingredients = [];
+    if (req.body.ingredients) {
+      try {
+        ingredients = JSON.parse(req.body.ingredients);
+      } catch (e) {
+        ingredients = [];
+      }
+    }
+    // Only use imageUrl from body or default to /homemade.png
+    const imageUrl = bodyImageUrl || '/homemade.png';
     const recipe = new Recipe({
-      ...req.body,
+      title,
+      instructions,
+      cookingTime,
+      servings,
+      ingredients: ingredients.map(ing => ({
+        amount: ing.quantity,
+        unit: ing.unit,
+        name: ing.name
+      })),
+      imageUrl,
       source: 'user'
     });
     await recipe.save();
     res.status(201).json(recipe);
   } catch (error) {
-    res.status(400).json({ error: 'Error creating recipe' });
+    res.status(400).json({ error: 'Error creating recipe', details: error.message });
   }
 });
 
@@ -74,15 +100,16 @@ router.post('/create', async (req, res) => {
 router.get('/by-ingredients', async (req, res) => {
   try {
     const { ingredients } = req.query; // comma-separated string
-    const response = await axios.get('https://api.spoonacular.com/recipes/findByIngredients', {
-      params: {
-        apiKey: process.env.SPOONACULAR_API_KEY,
-        ingredients,
-        number: 10
-      }
+    const params = new URLSearchParams({
+      apiKey: process.env.SPOONACULAR_API_KEY,
+      ingredients,
+      number: '10'
     });
-    res.json(response.data);
+    const response = await fetch(`https://api.spoonacular.com/recipes/findByIngredients?${params}`);
+    const data = await response.json();
+    res.json(data);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Error searching recipes by ingredients' });
   }
 });
@@ -94,19 +121,24 @@ router.get('/view/:id', async (req, res) => {
   try {
     let recipe;
     if (source === 'spoonacular') {
-      // Fetch from Spoonacular
-      const response = await axios.get(`https://api.spoonacular.com/recipes/${id}/information`, {
-        params: { apiKey: process.env.SPOONACULAR_API_KEY }
+      if (!process.env.SPOONACULAR_API_KEY) {
+        return res.status(500).json({ error: 'Spoonacular API key is missing' });
+      }
+      const params = new URLSearchParams({
+        apiKey: process.env.SPOONACULAR_API_KEY
       });
-      recipe = response.data;
-      res.render('recipe', { recipe, isSpoonacular: true });
+      const response = await fetch(`https://api.spoonacular.com/recipes/${id}/information?${params}`);
+      const data = await response.json();
+      recipe = data;
+      res.json({ recipe, isSpoonacular: true });
     } else {
       // Fetch from MongoDB
       recipe = await require('../models/Recipe').findById(id);
-      res.render('recipe', { recipe, isSpoonacular: false });
+      res.json({ recipe, isSpoonacular: false });
     }
   } catch (error) {
-    res.status(404).send('Recipe not found');
+    console.error(error);
+    res.status(404).json({ error: 'Recipe not found' });
   }
 });
 
@@ -114,16 +146,27 @@ router.get('/view/:id', async (req, res) => {
 router.get('/ingredient-autocomplete', async (req, res) => {
   try {
     const { query } = req.query;
-    const response = await axios.get('https://api.spoonacular.com/food/ingredients/autocomplete', {
-      params: {
-        apiKey: process.env.SPOONACULAR_API_KEY,
-        query,
-        number: 10
-      }
+    const params = new URLSearchParams({
+      apiKey: process.env.SPOONACULAR_API_KEY,
+      query,
+      number: '10'
     });
-    res.json(response.data);
+    const response = await fetch(`https://api.spoonacular.com/food/ingredients/autocomplete?${params}`);
+    const data = await response.json();
+    res.json(data);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Error fetching ingredient suggestions' });
+  }
+});
+
+// Delete a saved recipe by ID
+router.delete('/delete/:id', async (req, res) => {
+  try {
+    await Recipe.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: 'Recipe deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error deleting recipe' });
   }
 });
 
