@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= recipe.title %> | Recipe Manager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .recipe-details-container {
+            max-width: 700px;
+            margin: 2rem auto;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            padding: 2rem;
+        }
+        .recipe-details-container img {
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            object-fit: cover;
+            max-height: 350px;
+        }
+        .recipe-details-container h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        .recipe-meta {
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+        .ingredients-list {
+            margin-bottom: 2rem;
+        }
+        .ingredients-list ul {
+            margin-left: 1.5rem;
+        }
+        .instructions {
+            white-space: pre-line;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1.5rem;
+            color: #4CAF50;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .ingredients-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            margin-bottom: 2rem;
+        }
+        .ingredients-table th, .ingredients-table td {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+        }
+        .ingredients-table th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+        .ingredients-table tr:last-child td {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="recipe-details-container">
+        <a href="/" class="back-link">&larr; Back to Home</a>
+        <img src="<%= isSpoonacular ? recipe.image : recipe.imageUrl || 'https://via.placeholder.com/600x350' %>" alt="<%= recipe.title %>">
+        <h1><%= recipe.title %></h1>
+        <div class="recipe-meta">
+            <span>Cooking Time: <%= isSpoonacular ? recipe.readyInMinutes : recipe.cookingTime %> min</span> |
+            <span>Servings: <%= recipe.servings %></span>
+        </div>
+        <div class="ingredients-list">
+            <h2>Ingredients</h2>
+            <table class="ingredients-table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Quantity</th>
+                        <th>Item</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (isSpoonacular) { %>
+                        <% recipe.extendedIngredients.forEach((ing, idx) => { %>
+                            <tr>
+                                <td><input type="checkbox" class="ingredient-checkbox" id="ing-<%= idx %>"></td>
+                                <td><%= ing.measures && ing.measures.us.amount ? ing.measures.us.amount + ' ' + (ing.measures.us.unitShort || '') : '' %></td>
+                                <td><label for="ing-<%= idx %>"><%= ing.nameClean || ing.originalName || ing.name %></label></td>
+                            </tr>
+                        <% }) %>
+                    <% } else { %>
+                        <% recipe.ingredients.forEach((ing, idx) => { %>
+                            <% let match = ing.match(/^(\d+[^a-zA-Z]*)?\s*(.*)$/); %>
+                            <tr>
+                                <td><input type="checkbox" class="ingredient-checkbox" id="ing-<%= idx %>"></td>
+                                <td><%= match && match[1] ? match[1].trim() : '' %></td>
+                                <td><label for="ing-<%= idx %>"><%= match && match[2] ? match[2].trim() : ing %></label></td>
+                            </tr>
+                        <% }) %>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+        <div class="instructions">
+            <h2>Instructions</h2>
+            <% if (isSpoonacular) { %>
+                <%- recipe.instructions ? recipe.instructions : '<em>No instructions provided.</em>' %>
+            <% } else { %>
+                <%- recipe.instructions %>
+            <% } %>
+        </div>
+    </div>
+    <script>
+    // Ingredient checkbox strike-through
+    const checkboxes = document.querySelectorAll('.ingredient-checkbox');
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            const row = this.closest('tr');
+            if (this.checked) {
+                row.style.textDecoration = 'line-through';
+                row.style.opacity = 0.6;
+            } else {
+                row.style.textDecoration = '';
+                row.style.opacity = 1;
+            }
+        });
+    });
+    </script>
+</body>
+</html> 
