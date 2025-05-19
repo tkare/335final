@@ -1,17 +1,21 @@
 {
-  "name": "recipe-manager-frontend",
+  "name": "recipe-manager",
   "version": "1.0.0",
-  "description": "Frontend for Recipe Manager using React and Material UI",
-  "main": "index.js",
+  "description": "A Node.js/Express.js/MongoDB application for managing and discovering recipes with a React frontend.",
+  "main": "src/app.js",
   "type": "module",
-  "proxy": "http://localhost:4000",
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start": "node src/app.js",
+    "start:frontend": "cd frontend && npm start",
+    "build": "cd frontend && npm install && npm run build",
+    "test": "cd frontend && npm test",
+    "eject": "cd frontend && npm run eject"
   },
   "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^8.15.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "^5.0.1",
